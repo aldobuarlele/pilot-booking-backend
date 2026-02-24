@@ -1,0 +1,43 @@
+spring:
+  config:
+    import: optional:file:.env
+  application:
+    name: pilot-booking-backend
+  datasource:
+    url: jdbc:postgresql://localhost:5432/pilot_booking_db
+    username: pilot
+    password: pilot
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  web:
+    error:
+      include-message: always
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.pilotbooking: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+
+application:
+  security:
+    jwt:
+      secret-key: supersecretkeythatisverylongandsecureenoughforhs256algorithm
+      expiration: 86400000
