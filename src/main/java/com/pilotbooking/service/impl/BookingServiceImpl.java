@@ -11,6 +11,7 @@ import com.pilotbooking.repository.PaymentRepository;
 import com.pilotbooking.repository.ServiceFacilityRepository;
 import com.pilotbooking.repository.UserRepository;
 import com.pilotbooking.service.BookingService;
+import com.pilotbooking.service.FileStorageService;
 import com.pilotbooking.web.dto.request.BookingRequest;
 import com.pilotbooking.web.dto.response.BookingResponse;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +34,7 @@ public class BookingServiceImpl implements BookingService {
     private final ServiceFacilityRepository serviceRepository;
     private final UserRepository userRepository;
     private final PaymentRepository paymentRepository;
+    private final FileStorageService fileStorageService;
 
     @Override
     @Transactional
@@ -75,6 +78,41 @@ public class BookingServiceImpl implements BookingService {
         return unavailableDates;
     }
 
+    @Override
+    public List<BookingResponse> getAllBookingsForAdmin() {
+        return bookingRepository.findAll().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public BookingResponse updateBookingStatus(UUID bookingId, BookingStatus newStatus) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (newStatus == BookingStatus.HARD_BOOKED &&
+                (booking.getStatus() == BookingStatus.SOFT_BOOKED || booking.getStatus() == BookingStatus.PENDING_APPROVAL)) {
+            validateDateAvailability(booking.getService(), booking.getStartDate(), booking.getEndDate());
+        }
+
+        booking.setStatus(newStatus);
+        Booking updatedBooking = bookingRepository.save(booking);
+
+        Optional<Payment> optionalPayment = paymentRepository.findByBookingId(booking.getId());
+        if (optionalPayment.isPresent()) {
+            Payment payment = optionalPayment.get();
+            if (newStatus == BookingStatus.HARD_BOOKED) {
+                payment.setPaymentStatus(PaymentStatus.VERIFIED);
+            } else if (newStatus == BookingStatus.CANCELLED) {
+                payment.setPaymentStatus(PaymentStatus.REJECTED);
+            }
+            paymentRepository.save(payment);
+        }
+
+        return mapToResponse(updatedBooking);
+    }
+
     private BookingResponse processBooking(BookingRequest request, String userEmail, BookingStatus status, MultipartFile proofImage) {
         if (request.getStartDate().isAfter(request.getEndDate())) {
             throw new IllegalArgumentException("Start date cannot be after end date");
@@ -86,7 +124,9 @@ public class BookingServiceImpl implements BookingService {
         ServiceFacility service = serviceRepository.findById(request.getServiceId())
                 .orElseThrow(() -> new RuntimeException("Service not found"));
 
-        validateDateAvailability(service, request.getStartDate(), request.getEndDate());
+        if (status == BookingStatus.PENDING_APPROVAL || status == BookingStatus.HARD_BOOKED) {
+            validateDateAvailability(service, request.getStartDate(), request.getEndDate());
+        }
 
         long daysBetween = ChronoUnit.DAYS.between(request.getStartDate(), request.getEndDate()) + 1;
         BigDecimal totalPrice = service.getBasePrice().multiply(BigDecimal.valueOf(daysBetween));
@@ -104,7 +144,7 @@ public class BookingServiceImpl implements BookingService {
         booking = bookingRepository.save(booking);
 
         if (status == BookingStatus.PENDING_APPROVAL && proofImage != null) {
-            String imageUrl = uploadImageMock(proofImage);
+            String imageUrl = fileStorageService.storeFile(proofImage);
             Payment payment = Payment.builder()
                     .booking(booking)
                     .proofImageUrl(imageUrl)
@@ -114,14 +154,7 @@ public class BookingServiceImpl implements BookingService {
             paymentRepository.save(payment);
         }
 
-        return BookingResponse.builder()
-                .id(booking.getId())
-                .serviceName(service.getName())
-                .startDate(booking.getStartDate())
-                .endDate(booking.getEndDate())
-                .status(booking.getStatus())
-                .totalPrice(booking.getTotalPrice())
-                .build();
+        return mapToResponse(booking);
     }
 
     private void validateDateAvailability(ServiceFacility service, LocalDate startDate, LocalDate endDate) {
@@ -145,7 +178,14 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
-    private String uploadImageMock(MultipartFile file) {
-        return "/uploads/" + UUID.randomUUID() + "_" + file.getOriginalFilename();
+    private BookingResponse mapToResponse(Booking booking) {
+        return BookingResponse.builder()
+                .id(booking.getId())
+                .serviceName(booking.getService().getName())
+                .startDate(booking.getStartDate())
+                .endDate(booking.getEndDate())
+                .status(booking.getStatus())
+                .totalPrice(booking.getTotalPrice())
+                .build();
     }
 }
