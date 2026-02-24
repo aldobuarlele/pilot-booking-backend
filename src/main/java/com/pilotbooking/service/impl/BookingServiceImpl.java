@@ -47,20 +47,30 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public List<Map<String, LocalDate>> getUnavailableDates(UUID serviceId) {
-        List<BookingStatus> activeStatuses = Arrays.asList(
-                BookingStatus.SOFT_BOOKED,
+        ServiceFacility service = serviceRepository.findById(serviceId)
+                .orElseThrow(() -> new RuntimeException("Service not found"));
+
+        List<BookingStatus> hardStatuses = Arrays.asList(
                 BookingStatus.PENDING_APPROVAL,
                 BookingStatus.HARD_BOOKED
         );
 
-        List<Booking> bookings = bookingRepository.findActiveBookingsForService(serviceId, activeStatuses, LocalDate.now());
+        List<Booking> bookings = bookingRepository.findActiveBookingsForService(serviceId, hardStatuses, LocalDate.now());
+
+        Map<LocalDate, Long> dailyCounts = new HashMap<>();
+        for (Booking b : bookings) {
+            for (LocalDate d = b.getStartDate(); !d.isAfter(b.getEndDate()); d = d.plusDays(1)) {
+                dailyCounts.put(d, dailyCounts.getOrDefault(d, 0L) + 1);
+            }
+        }
 
         List<Map<String, LocalDate>> unavailableDates = new ArrayList<>();
-        for (Booking b : bookings) {
-            Map<String, LocalDate> dateRange = new HashMap<>();
-            dateRange.put("start", b.getStartDate());
-            dateRange.put("end", b.getEndDate());
-            unavailableDates.add(dateRange);
+        for (Map.Entry<LocalDate, Long> entry : dailyCounts.entrySet()) {
+            if (entry.getValue() >= service.getQuota()) {
+                Map<String, LocalDate> dateMap = new HashMap<>();
+                dateMap.put("date", entry.getKey());
+                unavailableDates.add(dateMap);
+            }
         }
         return unavailableDates;
     }
@@ -76,7 +86,7 @@ public class BookingServiceImpl implements BookingService {
         ServiceFacility service = serviceRepository.findById(request.getServiceId())
                 .orElseThrow(() -> new RuntimeException("Service not found"));
 
-        validateDateAvailability(service.getId(), request.getStartDate(), request.getEndDate());
+        validateDateAvailability(service, request.getStartDate(), request.getEndDate());
 
         long daysBetween = ChronoUnit.DAYS.between(request.getStartDate(), request.getEndDate()) + 1;
         BigDecimal totalPrice = service.getBasePrice().multiply(BigDecimal.valueOf(daysBetween));
@@ -114,15 +124,24 @@ public class BookingServiceImpl implements BookingService {
                 .build();
     }
 
-    private void validateDateAvailability(UUID serviceId, LocalDate startDate, LocalDate endDate) {
-        List<BookingStatus> activeStatuses = Arrays.asList(
-                BookingStatus.SOFT_BOOKED,
+    private void validateDateAvailability(ServiceFacility service, LocalDate startDate, LocalDate endDate) {
+        List<BookingStatus> hardStatuses = Arrays.asList(
                 BookingStatus.PENDING_APPROVAL,
                 BookingStatus.HARD_BOOKED
         );
-        List<Booking> overlapping = bookingRepository.findOverlappingBookings(serviceId, startDate, endDate, activeStatuses);
-        if (!overlapping.isEmpty()) {
-            throw new IllegalStateException("The selected dates are already booked.");
+
+        List<Booking> overlapping = bookingRepository.findOverlappingBookings(service.getId(), startDate, endDate, hardStatuses);
+
+        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+            long count = 0;
+            for (Booking b : overlapping) {
+                if (!date.isBefore(b.getStartDate()) && !date.isAfter(b.getEndDate())) {
+                    count++;
+                }
+            }
+            if (count >= service.getQuota()) {
+                throw new IllegalStateException("The service is fully booked on " + date);
+            }
         }
     }
 

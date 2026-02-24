@@ -33,10 +33,16 @@ public class ServiceFacility {
     @Column(name = "is_active", columnDefinition = "boolean default true")
     private Boolean isActive;
 
+    @Column(name = "quota", nullable = false, columnDefinition = "int default 1")
+    private Integer quota;
+
     @PrePersist
     protected void onCreate() {
         if (isActive == null) {
             isActive = true;
+        }
+        if (quota == null) {
+            quota = 1;
         }
     }
 }

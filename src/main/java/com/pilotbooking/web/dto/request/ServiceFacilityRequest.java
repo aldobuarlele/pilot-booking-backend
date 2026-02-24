@@ -1,23 +1,34 @@
-package com.pilotbooking.web.dto.response;
+package com.pilotbooking.web.dto.request;
 
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ServiceFacilityResponse {
-    private UUID id;
+public class ServiceFacilityRequest {
+    @NotBlank
     private String name;
+
+    @NotBlank
     private String description;
+
+    @NotNull
+    @Min(0)
     private BigDecimal basePrice;
+
     private String imageUrl;
+
+    @NotNull
+    @Min(1)
     private Integer quota;
+
+    @NotNull
     private Boolean isActive;
 }
