@@ -9,4 +9,6 @@ import java.util.UUID;
 @Repository
 public interface ServiceFacilityRepository extends JpaRepository<ServiceFacility, UUID> {
     List<ServiceFacility> findByIsActiveTrue();
+
+    long countByIsActiveTrue();
 }
