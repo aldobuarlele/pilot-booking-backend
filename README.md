@@ -36,3 +36,30 @@ Engineered for production scalability and operational transparency, the system e
 ### 1. Database Provisioning
 ```sql
 CREATE DATABASE pilot_booking_db;
+```
+
+### 2. Configuration (src/main/resources/application.yml)
+
+```
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/pilot_booking_db
+    username: your_postgres_user
+    password: your_postgres_password
+
+app:
+  jwt:
+    secret: your_strong_base64_secret
+    expiration: 900000 # 15 minutes
+```
+
+
+### 3. Build & Run
+
+```
+./mvnw clean install
+./mvnw spring-boot:run
+
+API Base URL: http://localhost:8080
+Swagger UI (Interactive Docs): http://localhost:8080/swagger-ui/index.html
+```
