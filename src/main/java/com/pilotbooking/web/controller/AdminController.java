@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -29,10 +30,13 @@ public class AdminController {
                 .build());
     }
 
-    @PostMapping
+    @PostMapping(consumes = { "multipart/form-data" })
     public ResponseEntity<BaseResponse<ServiceFacilityResponse>> createService(
-            @Valid @RequestBody ServiceFacilityRequest request) {
-        ServiceFacilityResponse data = serviceFacilityService.createService(request);
+            @Valid @RequestPart("data") ServiceFacilityRequest request,
+            @RequestPart(value = "image", required = false) MultipartFile image) {
+
+        ServiceFacilityResponse data = serviceFacilityService.createService(request, image);
+
         return ResponseEntity.ok(BaseResponse.<ServiceFacilityResponse>builder()
                 .status(200)
                 .message("Service created successfully")
@@ -40,11 +44,14 @@ public class AdminController {
                 .build());
     }
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = { "multipart/form-data" })
     public ResponseEntity<BaseResponse<ServiceFacilityResponse>> updateService(
             @PathVariable UUID id,
-            @Valid @RequestBody ServiceFacilityRequest request) {
-        ServiceFacilityResponse data = serviceFacilityService.updateService(id, request);
+            @Valid @RequestPart("data") ServiceFacilityRequest request,
+            @RequestPart(value = "image", required = false) MultipartFile image) {
+
+        ServiceFacilityResponse data = serviceFacilityService.updateService(id, request, image);
+
         return ResponseEntity.ok(BaseResponse.<ServiceFacilityResponse>builder()
                 .status(200)
                 .message("Service updated successfully")
