@@ -8,14 +8,6 @@ The authoritative, business-critical domain layer powering the Pilot Booking Sys
 ---
 
 
-## 🏛️ Architectural Philosophy
-
-Engineered for production scalability and operational transparency, the system enforces a strict separation of concerns: `Controller → Service → Repository → Database`.
-* **Stateless & Horizontally Scalable:** Optimized for distributed deployments.
-* **Domain Integrity:** Zero business logic in controllers; zero persistence logic in services.
-* **Deterministic Evolution:** 100% version-controlled database schemas via Flyway.
-
----
 ## ✨ Core Functional Domains
 
 1. **Identity & Access Control:** JWT-based stateless authentication with Role-Based Access Control (RBAC) and strict 15-minute token lifecycles.
@@ -23,7 +15,12 @@ Engineered for production scalability and operational transparency, the system e
 3. **Storage Management:** Secure multipart upload pipelines for service catalogs and payment proofs, abstracted for future cloud-native migration (e.g., AWS S3).
 4. **Metrics Analytics:** Performance-conscious aggregation of revenue, booking distributions, and active services.
 
+## 🏛️ Architectural Philosophy
 
+Engineered for production scalability and operational transparency, the system enforces a strict separation of concerns: `Controller → Service → Repository → Database`.
+* **Stateless & Horizontally Scalable:** Optimized for distributed deployments.
+* **Domain Integrity:** Zero business logic in controllers; zero persistence logic in services.
+* **Deterministic Evolution:** 100% version-controlled database schemas via Flyway.
 
 ---
 
